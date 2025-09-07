@@ -6,7 +6,7 @@ from pyrogram.types import Message
 from dotenv import load_dotenv
 from db import set_thumb, get_thumb, del_thumb, add_user, get_all_users
 from thumbs import ensure_dir, image_to_jpeg_thumb, extract_video_frame_as_thumb
-from db import set_thumb, get_thumb, del_thumb, add_user, get_all_users
+
 load_dotenv()
 
 API_ID = int(os.getenv("API_ID", "24196359"))
@@ -23,7 +23,7 @@ app = Client("thumb_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN,
 # ---- Commands ----
 @app.on_message(filters.command("start") & filters.private)
 async def start_cmd(c: Client, m: Message):
-    add_user(m.from_user.id)  # track user
+    add_user(m.from_user.id)
     await m.reply_text(
         "👋 Hi! I'm Thumbnail Changer Bot.\n\n"
         "Commands:\n"
@@ -34,7 +34,6 @@ async def start_cmd(c: Client, m: Message):
         "Send a video or document and I'll re-upload it with your saved thumbnail."
     )
 
-# Save uploaded photo as user's thumbnail
 @app.on_message(filters.command("set_thumb") & filters.private)
 async def set_thumb_cmd(c: Client, m: Message):
     user_id = m.from_user.id
@@ -67,7 +66,6 @@ async def set_thumb_cmd(c: Client, m: Message):
     set_thumb(user_id, file_id, os.path.basename(thumb_path), "image/jpeg")
     await m.reply_text("✅ Thumbnail saved! Now send a video or document and I'll attach it for you.\nUse /show_thumb or /del_thumb.")
 
-# Show current thumb
 @app.on_message(filters.command("show_thumb") & filters.private)
 async def show_thumb_cmd(c: Client, m: Message):
     user_id = m.from_user.id
@@ -77,7 +75,6 @@ async def show_thumb_cmd(c: Client, m: Message):
         return
     await c.send_photo(chat_id=m.chat.id, photo=doc["file_id"], caption="Your saved thumbnail")
 
-# Delete thumb
 @app.on_message(filters.command("del_thumb") & filters.private)
 async def del_thumb_cmd(c: Client, m: Message):
     user_id = m.from_user.id
@@ -88,7 +85,6 @@ async def del_thumb_cmd(c: Client, m: Message):
     del_thumb(user_id)
     await m.reply_text("Deleted saved thumbnail ✅")
 
-# Broadcast message (Admin only)
 @app.on_message(filters.command("broadcast") & filters.private)
 async def broadcast_cmd(c: Client, m: Message):
     if m.from_user.id not in ADMINS:
@@ -111,7 +107,6 @@ async def broadcast_cmd(c: Client, m: Message):
             continue
     await m.reply_text(f"✅ Broadcast sent to {sent} users.")
 
-# Handle media with user's thumbnail
 @app.on_message(filters.private & (filters.video | filters.document))
 async def media_handler(c: Client, m: Message):
     user_id = m.from_user.id
@@ -162,4 +157,11 @@ async def media_handler(c: Client, m: Message):
 
 if __name__ == "__main__":
     print("Starting Thumbnail Changer Bot with Admin & Broadcast...")
+
+    # ----------------- FIX FOR RENDER TIME SYNC -----------------
+    import os
+    if os.path.exists("thumb_bot.session"):  # delete old session to fix Pyrogram time error
+        os.remove("thumb_bot.session")
+
+    # Run bot
     app.run()
