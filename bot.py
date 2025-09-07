@@ -1,167 +1,99 @@
-# bot.py
-import os
-import asyncio
+#Don't Remove Credit @Hgbotz 
+
+import aiohttp
 from pyrogram import Client, filters
-from pyrogram.types import Message
-from dotenv import load_dotenv
-from db import set_thumb, get_thumb, del_thumb, add_user, get_all_users
-from thumbs import ensure_dir, image_to_jpeg_thumb, extract_video_frame_as_thumb
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
-load_dotenv()
+# ===== CONFIG =====
+API_ID = "24196359"
+API_HASH = "20a1b32381ed174799e8af8def3e176b"
+BOT_TOKEN = "8487451897:AAE2MszZ-sohzBZimze54HHdRbiSIK3fDiw"
 
-API_ID = int(os.getenv("API_ID", "24196359"))
-API_HASH = os.getenv("API_HASH", "20a1b32381ed174799e8af8def3e176b")
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "./downloads")
-ADMINS = [int(x) for x in os.getenv("ADMINS", "7404203924").split(",") if x.strip()]
 
-ensure_dir(DOWNLOAD_DIR)
-ensure_dir(os.path.join(DOWNLOAD_DIR, "thumbs"))
+# ===== BOT INSTANCE =====
+client = Client("ott_scraper_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-app = Client("thumb_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN, workdir=DOWNLOAD_DIR)
+# ===== INLINE BUTTON =====
+update_button = InlineKeyboardMarkup(
+    [[InlineKeyboardButton("ðŸ˜¶â€ðŸŒ«ï¸ Updates", url ="https://t.me/hgbotz")]]
+)
 
-# ---- Commands ----
-@app.on_message(filters.command("start") & filters.private)
-async def start_cmd(c: Client, m: Message):
-    add_user(m.from_user.id)
-    await m.reply_text(
-        "👋 Hi! I'm Thumbnail Changer Bot.\n\n"
-        "Commands:\n"
-        "/set_thumb - send an image or reply to an image to save as your thumbnail\n"
-        "/show_thumb - show your saved thumbnail\n"
-        "/del_thumb - delete saved thumbnail\n"
-        "/broadcast <message> - admin only\n\n"
-        "Send a video or document and I'll re-upload it with your saved thumbnail."
-    )
+# ===== COMMON FUNCTION =====
+async def fetch_ott_data(api_url: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(api_url) as resp:
+            if resp.status != 200:
+                return None
+            return await resp.json()
 
-@app.on_message(filters.command("set_thumb") & filters.private)
-async def set_thumb_cmd(c: Client, m: Message):
-    user_id = m.from_user.id
-    add_user(user_id)
-
-    if m.reply_to_message and (m.reply_to_message.photo or m.reply_to_message.document):
-        src = m.reply_to_message
-    else:
-        await m.reply_text("Please reply to the image you want to set as thumbnail.")
-        return
-
-    file = None
-    if src.photo:
-        file = await src.photo.download(file_name=f"thumbs/{user_id}_orig.jpg")
-    elif src.document:
-        file = await src.document.download(file_name=f"thumbs/{user_id}_orig")
-    else:
-        await m.reply_text("Unsupported file. Send a photo or image document.")
-        return
-
-    thumb_path = f"thumbs/{user_id}_thumb.jpg"
+async def handle_ott_command(message: Message, api_url: str):
+    msg = await message.reply("ðŸ” Fetching...")
     try:
-        image_to_jpeg_thumb(file, thumb_path)
+        data = await fetch_ott_data(api_url)
+        if not data:
+            return await msg.edit_text("âŒ Failed to fetch data from API.")
+
+        title = data.get("title") or "No Title"
+        image_url = data.get("poster") or data.get("landscape")
+
+        if not title and not image_url:
+            return await msg.edit_text("âš ï¸ No title or poster found for this URL.")
+            
+            #Don't Remove Credit @Hgbotz 
+
+        text = (
+            f"ðŸŽ¬ <b>{title}</b>\n\n"
+            f"ðŸ–¼ï¸ Poster: {image_url}\n\n"
+            
+            "<b><blockquote>Powered By <a href='https://t.me/hgbotz'>ð™·ð™¶ð™±ð™¾ðšƒá¶» ðŸ¦‹</a></blockquote></b>"
+        )
+
+        await msg.edit_text(
+            text=text,
+            disable_web_page_preview=False,
+            reply_markup=update_button
+        )
+
     except Exception as e:
-        await m.reply_text(f"Failed to process thumbnail: {e}")
-        return
+        await msg.edit_text(f"âŒ Error: {e}")
 
-    uploaded = await c.send_photo(chat_id=user_id, photo=thumb_path, caption="✅ Thumb saved (temporary upload).")
-    file_id = uploaded.photo.file_id
-    set_thumb(user_id, file_id, os.path.basename(thumb_path), "image/jpeg")
-    await m.reply_text("✅ Thumbnail saved! Now send a video or document and I'll attach it for you.\nUse /show_thumb or /del_thumb.")
+#Don't Remove Credit @Hgbotz 
+# ===== COMMAND HANDLERS =====
+@client.on_message(filters.command(["sunnext", "hulu", "stage", "adda", "wetv", "plex", "iqiyi", "aha", "shemaroo", "apple"]))
+async def ott_cmd(client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply("ðŸ”— Please provide an OTT URL.\n\nExample:\n`/sunnext https://...`")
 
-@app.on_message(filters.command("show_thumb") & filters.private)
-async def show_thumb_cmd(c: Client, m: Message):
-    user_id = m.from_user.id
-    doc = get_thumb(user_id)
-    if not doc:
-        await m.reply_text("You have no saved thumbnail. Use /set_thumb.")
-        return
-    await c.send_photo(chat_id=m.chat.id, photo=doc["file_id"], caption="Your saved thumbnail")
+    ott_url = message.text.split(None, 1)[1].strip()
+    api_url = f"https://hgbots.vercel.app/bypaas/asa.php?url={ott_url}"
+    await handle_ott_command(message, api_url)
 
-@app.on_message(filters.command("del_thumb") & filters.private)
-async def del_thumb_cmd(c: Client, m: Message):
-    user_id = m.from_user.id
-    doc = get_thumb(user_id)
-    if not doc:
-        await m.reply_text("No thumbnail to delete.")
-        return
-    del_thumb(user_id)
-    await m.reply_text("Deleted saved thumbnail ✅")
+@client.on_message(filters.command("airtel"))
+async def airtel_cmd(client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply("ðŸ”— Please provide an Airtel OTT URL.\n\nExample:\n`/airtel https://...`")
+#Don't Remove Credit @Hgbotz 
+    ott_url = message.text.split(None, 1)[1].strip()
+    api_url = f"https://hgbots.vercel.app/bypaas/airtel.php?url={ott_url}"
+    await handle_ott_command(message, api_url)
 
-@app.on_message(filters.command("broadcast") & filters.private)
-async def broadcast_cmd(c: Client, m: Message):
-    if m.from_user.id not in ADMINS:
-        await m.reply_text("❌ You are not authorized to use this command.")
-        return
+@client.on_message(filters.command("zee"))
+async def zee_cmd(client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply("ðŸ”— Please provide a Zee OTT URL.\n\nExample:\n`/zee https://...`")
+#Don't Remove Credit @Hgbotz 
+    ott_url = message.text.split(None, 1)[1].strip()
+    api_url = f"https://hgbots.vercel.app/bypaas/zee.php?url={ott_url}"
+    await handle_ott_command(message, api_url)
 
-    args = m.text.split(None, 1)
-    if len(args) < 2:
-        await m.reply_text("Usage: /broadcast <message>")
-        return
+@client.on_message(filters.command("prime"))
+async def prime_cmd(client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply("ðŸ”— Please provide a Prime OTT URL.\n\nExample:\n`/prime https://...`")
 
-    message = args[1]
-    users = get_all_users()
-    sent = 0
-    for uid in users:
-        try:
-            await c.send_message(uid, message)
-            sent += 1
-        except:
-            continue
-    await m.reply_text(f"✅ Broadcast sent to {sent} users.")
-
-@app.on_message(filters.private & (filters.video | filters.document))
-async def media_handler(c: Client, m: Message):
-    user_id = m.from_user.id
-    add_user(user_id)
-    doc = get_thumb(user_id)
-    if not doc:
-        await m.reply_text("You don't have a saved thumbnail. Use /set_thumb to save one, then resend the file.")
-        return
-
-    media = m.video or m.document
-    fname = os.path.join(DOWNLOAD_DIR, f"{user_id}_upload_{media.file_unique_id}")
-    path = await media.download(file_name=fname)
-
-    thumb_local = os.path.join(DOWNLOAD_DIR, "thumbs", f"{user_id}_for_send.jpg")
-    try:
-        await c.download_media(doc["file_id"], file_name=thumb_local)
-    except Exception:
-        fallback = os.path.join("thumbs", f"{user_id}_thumb.jpg")
-        if os.path.exists(fallback):
-            thumb_local = fallback
-        else:
-            thumb_local = None
-
-    try:
-        if m.video:
-            await c.send_chat_action(m.chat.id, "upload_video")
-            await c.send_video(
-                chat_id=m.chat.id,
-                video=path,
-                thumb=thumb_local if thumb_local else None,
-                caption=f"Here you go — reuploaded with your thumbnail"
-            )
-        else:
-            await c.send_chat_action(m.chat.id, "upload_document")
-            await c.send_document(
-                chat_id=m.chat.id,
-                document=path,
-                thumb=thumb_local if thumb_local else None,
-                caption="Document reuploaded with your thumbnail (if supported)."
-            )
-    except Exception as e:
-        await m.reply_text(f"Failed to re-upload with thumbnail: {e}")
-    finally:
-        try:
-            os.remove(path)
-        except:
-            pass
-
-if __name__ == "__main__":
-    print("Starting Thumbnail Changer Bot with Admin & Broadcast...")
-
-    # ----------------- FIX FOR RENDER TIME SYNC -----------------
-    import os
-    if os.path.exists("thumb_bot.session"):  # delete old session to fix Pyrogram time error
-        os.remove("thumb_bot.session")
-
-    # Run bot
-    app.run()
+    ott_url = message.text.split(None, 1)[1].strip()
+    api_url = f"https://primevideo.pbx1bots.workers.dev/?url={ott_url}"
+    await handle_ott_command(message, api_url)
+#Don't Remove Credit @Hgbotz 
+# ===== RUN BOT =====
+client.run()
