@@ -6,7 +6,7 @@ from pyrogram.types import Message
 from dotenv import load_dotenv
 from db import set_thumb, get_thumb, del_thumb, add_user, get_all_users
 from thumbs import ensure_dir, image_to_jpeg_thumb, extract_video_frame_as_thumb
-
+from db import set_thumb, get_thumb, del_thumb, add_user, get_all_users
 load_dotenv()
 
 API_ID = int(os.getenv("API_ID", "24196359"))
