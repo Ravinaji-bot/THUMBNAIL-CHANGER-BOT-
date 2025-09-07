@@ -1,12 +1,17 @@
- # Use official Python slim image
+# Use official Python slim image
 FROM python:3.10-slim
 
 # Set workdir
 WORKDIR /app
 
-# Install dependencies
+# Set timezone environment variable
+ENV TZ=UTC
+
+# Install dependencies + tzdata for time sync
 RUN apt-get update -y && \
-    apt-get install -y git ffmpeg && \
+    apt-get install -y git ffmpeg tzdata && \
+    ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
