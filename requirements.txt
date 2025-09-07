@@ -1,0 +1,6 @@
+pyrogram==2.0.34
+tgcrypto
+pymongo
+python-dotenv
+Pillow
+requests
