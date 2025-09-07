@@ -9,8 +9,8 @@ from thumbs import ensure_dir, image_to_jpeg_thumb, extract_video_frame_as_thumb
 
 load_dotenv()
 
-API_ID = int(os.getenv("API_ID", "0"))
-API_HASH = os.getenv("API_HASH", "")
+API_ID = int(os.getenv("API_ID", "24196359"))
+API_HASH = os.getenv("API_HASH", "20a1b32381ed174799e8af8def3e176b")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "./downloads")
 
